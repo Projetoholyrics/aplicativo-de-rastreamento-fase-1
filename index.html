@@ -1,234 +1,284 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Localizador GPS + DDD</title>
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mapeador DDD — Lista de Cidades</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div class="brand">
         <div class="logo-dot"></div>
-        <h1>Localizador GPS + DDD</h1>
+        <h1>Mapeador DDD — Cidades Associadas</h1>
       </div>
-      <div class="note muted">Protótipo: GPS real + cidade por DDD</div>
+      <div class="note">Insira número ou DDD — mostra todas as cidades associadas ao DDD.</div>
     </header>
 
     <main class="main">
       <section class="left-panel">
         <div class="card">
-          <h2>Controle</h2>
-          <p class="muted">Clique em <strong>Localizar Agora</strong> ou digite o DDD e pressione Enter.</p>
-
+          <h2>Entrada</h2>
+          <p class="muted">Digite o número (com ou sem +55) ou só o DDD (ex: 81).</p>
+          <input id="phoneInput" class="input" placeholder="+55 (11) 99999-0000 ou 11" />
           <div class="actions">
-            <button id="btnLocate" class="btn primary">Localizar GPS</button>
+            <button id="btnMap" class="btn primary">Mapear DDD</button>
+            <button id="btnClear" class="btn ghost">Limpar</button>
           </div>
-
-          <div class="card ddd-card">
-            <h3>Rastrear por DDD</h3>
-            <input type="text" id="inputDDD" placeholder="Digite DDD + número (ex: 11 912345678)" />
-          </div>
-
-          <div class="privacy">
-            <strong>Aviso de privacidade:</strong>
-            <p class="muted">GPS precisa de permissão do navegador. A cidade do DDD é uma aproximação (sem rastrear número real).</p>
-          </div>
+          <div class="legal-note muted">Protótipo: usa tabela pública de DDDs. Não identifica pessoas.</div>
         </div>
 
-        <div class="card info">
-          <h3>Informações GPS</h3>
-          <div id="infoBox" class="infoBox">
-            <div class="infoRow"><strong>Status:</strong> <span id="statusText">Aguardando</span></div>
-            <div class="infoRow"><strong>Latitude:</strong> <span id="latText">—</span></div>
-            <div class="infoRow"><strong>Longitude:</strong> <span id="lonText">—</span></div>
-            <div class="infoRow"><strong>Cidade:</strong> <span id="cityText">—</span></div>
-            <div class="infoRow"><strong>Bairro:</strong> <span id="neighText">—</span></div>
-            <div class="infoRow"><strong>Estado / País:</strong> <span id="stateText">—</span></div>
-          </div>
-          <div id="dddInfo" class="infoBox">
-            <div class="infoRow"><strong>DDD:</strong> <span id="dddText">—</span></div>
-            <div class="infoRow"><strong>Cidade estimada:</strong> <span id="dddCityText">—</span></div>
-          </div>
+        <div class="card history">
+          <h3>Histórico</h3>
+          <ul id="historyList" class="case-list"></ul>
         </div>
       </section>
 
       <section class="right-panel">
-        <div class="card map-card">
+        <div class="card tracker">
           <div class="tracker-header">
-            <h2 id="mapTitle">Mapa — Satélite</h2>
-            <div id="mapNote" class="muted">Marcador azul = GPS | Marcador vermelho = DDD</div>
+            <h2 id="statusTitle">Pronto</h2>
+            <div id="statusSub" class="muted">Insira um número e clique em "Mapear DDD".</div>
           </div>
 
-          <div id="map" class="map"></div>
+          <div class="visual">
+            <div id="radar" class="radar"><div class="line"></div></div>
+
+            <div id="mapBox" class="mapBox closed">
+              <div class="grid"></div>
+              <div id="satLine" class="sat-line" aria-hidden="true"></div>
+              <div id="marker" class="marker" title="Cidade principal"></div>
+              <div id="mapLabel" class="mapLabel">—</div>
+            </div>
+          </div>
+
+          <div id="result" class="result">
+            <div class="placeholder muted">Aguardando entrada...</div>
+            <div id="cityList" class="city-list"></div>
+          </div>
+
+          <div class="tracker-footer">
+            <div class="small muted">Dados: lista representativa de cidades por DDD (tabela pública).</div>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer class="footer muted">Protótipo seguro — teste localmente no navegador</footer>
+    <footer class="footer muted">Protótipo local — lista de cidades representativas por DDD.</footer>
   </div>
 
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ---------- DADOS: DDD -> cidade principal + lista de cidades (exemplos) ---------- */
+/* Cada entrada: { main: "Cidade Principal", state: "UF", coords:[lat,lon], cities: [ ... ] } */
+const dddData = {
+  "11": { main:"São Paulo","state":"SP", coords:[-23.55,-46.63], cities:["São Paulo","Guarulhos","Osasco","Santo André","São Bernardo do Campo","São Caetano"] },
+  "12": { main:"São José dos Campos","state":"SP", coords:[-23.19,-45.89], cities:["São José dos Campos","Taubaté","Jacareí","Aparecida","Caçapava"] },
+  "13": { main:"Santos","state":"SP", coords:[-23.96,-46.33], cities:["Santos","São Vicente","Praia Grande","Guarujá"] },
+  "14": { main:"Bauru","state":"SP", coords:[-22.33,-49.06], cities:["Bauru","Marília","Botucatu"] },
+  "15": { main:"Sorocaba","state":"SP", coords:[-23.50,-47.46], cities:["Sorocaba","Itapetininga","Tatuí"] },
+  "16": { main:"Ribeirão Preto","state":"SP", coords:[-21.18,-47.81], cities:["Ribeirão Preto","Araraquara","Franca"] },
+  "17": { main:"São José do Rio Preto","state":"SP", coords:[-20.82,-49.38], cities:["São José do Rio Preto","Votuporanga","Catanduva"] },
+  "18": { main:"Presidente Prudente","state":"SP", coords:[-22.12,-51.41], cities:["Presidente Prudente","Araçatuba","Assis"] },
+  "19": { main:"Campinas","state":"SP", coords:[-22.90,-47.06], cities:["Campinas","Piracicaba","Indaiatuba","Valinhos"] },
 
-  <script>
-  const btnLocate = document.getElementById('btnLocate');
-  const inputDDD = document.getElementById('inputDDD');
-  const statusText = document.getElementById('statusText');
-  const latText = document.getElementById('latText');
-  const lonText = document.getElementById('lonText');
-  const cityText = document.getElementById('cityText');
-  const neighText = document.getElementById('neighText');
-  const stateText = document.getElementById('stateText');
-  const dddText = document.getElementById('dddText');
-  const dddCityText = document.getElementById('dddCityText');
+  "21": { main:"Rio de Janeiro","state":"RJ", coords:[-22.90,-43.20], cities:["Rio de Janeiro","Niterói","Duque de Caxias","Nova Iguaçu"] },
+  "22": { main:"Campos dos Goytacazes","state":"RJ", coords:[-21.76,-41.33], cities:["Campos dos Goytacazes","Macaé","Cabo Frio"] },
+  "24": { main:"Volta Redonda","state":"RJ", coords:[-22.52,-44.10], cities:["Volta Redonda","Resende","Barra Mansa"] },
 
-  // Map init (center Brazil)
-  const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([-14.2, -51.9], 4);
+  "27": { main:"Vitória","state":"ES", coords:[-20.32,-40.34], cities:["Vitória","Vila Velha","Serra","Cariacica"] },
+  "28": { main:"Cachoeiro de Itapemirim","state":"ES", coords:[-20.85,-41.12], cities:["Cachoeiro de Itapemirim","Guarapari"] },
 
-  const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19
-  }).addTo(map);
+  "31": { main:"Belo Horizonte","state":"MG", coords:[-19.92,-43.94], cities:["Belo Horizonte","Contagem","Betim","Uberlândia","Juiz de Fora"] },
+  "32": { main:"Juiz de Fora","state":"MG", coords:[-21.76,-43.34], cities:["Juiz de Fora","Petrópolis (RJ) - área metropolitana"] },
+  "33": { main:"Governador Valadares","state":"MG", coords:[-18.85,-41.95], cities:["Governador Valadares","Manhuaçu"] },
+  "34": { main:"Uberlândia","state":"MG", coords:[-18.91,-48.28], cities:["Uberlândia","Araguari"] },
+  "35": { main:"Poços de Caldas","state":"MG", coords:[-21.78,-46.56], cities:["Poços de Caldas","Pouso Alegre"] },
+  "37": { main:"Uberaba","state":"MG", coords:[-19.75,-47.95], cities:["Uberaba","Franca (SP) - área"] },
+  "38": { main:"Montes Claros","state":"MG", coords:[-16.73,-43.86], cities:["Montes Claros","Januária"] },
 
-  // pulse markers
-  const blueIcon = L.divIcon({ html:'<span class="pulse-marker blue"></span>', className:'pulse-div-icon', iconSize:[20,20], iconAnchor:[10,10] });
-  const redIcon = L.divIcon({ html:'<span class="pulse-marker red"></span>', className:'pulse-div-icon', iconSize:[20,20], iconAnchor:[10,10] });
+  "41": { main:"Curitiba","state":"PR", coords:[-25.43,-49.27], cities:["Curitiba","Londrina","Maringá","Ponta Grossa"] },
+  "42": { main:"Ponta Grossa","state":"PR", coords:[-25.10,-50.16], cities:["Ponta Grossa","Castro"] },
+  "43": { main:"Londrina","state":"PR", coords:[-23.30,-51.16], cities:["Londrina","Rolândia"] },
+  "44": { main:"Maringá","state":"PR", coords:[-23.42,-51.93], cities:["Maringá","Cianorte"] },
+  "45": { main:"Foz do Iguaçu","state":"PR", coords:[-25.55,-54.58], cities:["Foz do Iguaçu","Cascavel"] },
+  "46": { main:"Pato Branco","state":"PR", coords:[-26.22,-52.67], cities:["Pato Branco","Francisco Beltrão"] },
 
-  let gpsMarker = null;
-  let dddMarker = null;
-  let pulseLine = null;
+  "47": { main:"Joinville","state":"SC", coords:[-26.30,-48.84], cities:["Joinville","Blumenau","Jaraguá do Sul"] },
+  "48": { main:"Florianópolis","state":"SC", coords:[-27.60,-48.55], cities:["Florianópolis","São José","Palhoça"] },
+  "49": { main:"Chapecó","state":"SC", coords:[-27.10,-52.61], cities:["Chapecó","Concórdia"] },
 
-  async function reverseGeocode(lat, lon){
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&addressdetails=1`, { headers:{'Accept-Language':'pt-BR'} });
-      const data = await res.json();
-      const a = data.address || {};
-      // Forçar bairro Lorival Parente
-      return {
-        city: a.city||a.town||a.village||a.county||'',
-        neighbourhood: 'Lorival Parente', 
-        state: a.state||a.region||'',
-        country: a.country||''
-      };
-    } catch(e){
-      console.warn('Reverse geocode falhou', e);
-      return null;
-    }
+  "51": { main:"Porto Alegre","state":"RS", coords:[-30.03,-51.23], cities:["Porto Alegre","Canoas","Novo Hamburgo"] },
+  "53": { main:"Pelotas","state":"RS", coords:[-31.76,-52.34], cities:["Pelotas","Rio Grande"] },
+  "54": { main:"Caxias do Sul","state":"RS", coords:[-29.16,-51.18], cities:["Caxias do Sul","Bento Gonçalves"] },
+  "55": { main:"Santa Maria","state":"RS", coords:[-29.69,-53.81], cities:["Santa Maria","Santa Cruz do Sul"] },
+
+  "61": { main:"Brasília","state":"DF", coords:[-15.79,-47.88], cities:["Brasília","Gama","Taguatinga"] },
+
+  "62": { main:"Goiânia","state":"GO", coords:[-16.68,-49.25], cities:["Goiânia","Anápolis"] },
+  "64": { main:"Rio Verde","state":"GO", coords:[-17.79,-50.92], cities:["Rio Verde","Catalão"] },
+
+  "63": { main:"Palmas","state":"TO", coords:[-10.18,-48.33], cities:["Palmas","Araguaína"] },
+
+  "65": { main:"Cuiabá","state":"MT", coords:[-15.59,-56.10], cities:["Cuiabá","Rondonópolis"] },
+  "66": { main:"Rondonópolis","state":"MT", coords:[-16.47,-54.64], cities:["Rondonópolis","Sinop"] },
+
+  "67": { main:"Campo Grande","state":"MS", coords:[-20.47,-54.62], cities:["Campo Grande","Dourados"] },
+
+  "68": { main:"Rio Branco","state":"AC", coords:[-9.97,-67.81], cities:["Rio Branco","Cruzeiro do Sul"] },
+  "69": { main:"Porto Velho","state":"RO", coords:[-8.76,-63.90], cities:["Porto Velho","Ji-Paraná"] },
+
+  "71": { main:"Salvador","state":"BA", coords:[-12.97,-38.50], cities:["Salvador","Feira de Santana","Vitória da Conquista"] },
+  "72": { main:"Eunápolis","state":"BA", coords:[-16.37,-39.07], cities:["Eunápolis","Porto Seguro"] },
+  "73": { main:"Ilhéus","state":"BA", coords:[-14.79,-39.05], cities:["Ilhéus","Itabuna"] },
+  "74": { main:"Juazeiro","state":"BA", coords:[-9.41,-40.51], cities:["Juazeiro","Jacobina"] },
+  "75": { main:"Feira de Santana","state":"BA", coords:[-12.25,-38.96], cities:["Feira de Santana","Serrinha"] },
+  "77": { main:"Vitória da Conquista","state":"BA", coords:[-14.86,-40.83], cities:["Vitória da Conquista","Guanambi"] },
+
+  "79": { main:"Aracaju","state":"SE", coords:[-10.91,-37.07], cities:["Aracaju","Nossa Senhora do Socorro"] },
+
+  "81": { main:"Recife","state":"PE", coords:[-8.05,-34.90], cities:["Recife","Olinda","Jaboatão dos Guararapes","Paulista"] },
+  "87": { main:"Petrolina","state":"PE", coords:[-9.39,-40.50], cities:["Petrolina","Salgueiro"] },
+
+  "82": { main:"Maceió","state":"AL", coords:[-9.66,-35.73], cities:["Maceió","Arapiraca"] },
+  "83": { main:"João Pessoa","state":"PB", coords:[-7.12,-34.86], cities:["João Pessoa","Campina Grande"] },
+  "84": { main:"Natal","state":"RN", coords:[-5.79,-35.21], cities:["Natal","Mossoró"] },
+
+  "85": { main:"Fortaleza","state":"CE", coords:[-3.72,-38.54], cities:["Fortaleza","Juazeiro do Norte","Sobral"] },
+  "88": { main:"Juazeiro do Norte","state":"CE", coords:[-7.21,-39.32], cities:["Juazeiro do Norte","Crato"] },
+
+  "86": { main:"Teresina","state":"PI", coords:[-5.09,-42.80], cities:["Teresina","Parnaíba"] },
+  "89": { main:"Parnaíba","state":"PI", coords:[-2.90,-41.77], cities:["Parnaíba","Picos"] },
+
+  "91": { main:"Belém","state":"PA", coords:[-1.46,-48.50], cities:["Belém","Ananindeua","Santarém"] },
+  "93": { main:"Santarém","state":"PA", coords:[-2.43,-54.70], cities:["Santarém","Itaituba"] },
+  "94": { main:"Marabá","state":"PA", coords:[-5.38,-49.13], cities:["Marabá","Parauapebas"] },
+
+  "92": { main:"Manaus","state":"AM", coords:[-3.10,-60.02], cities:["Manaus","Coari"] },
+  "97": { main:"Coari","state":"AM", coords:[-4.08,-63.13], cities:["Coari","Humaitá"] },
+
+  "95": { main:"Boa Vista","state":"RR", coords:[2.82,-60.67], cities:["Boa Vista","Caracaraí"] },
+  "96": { main:"Macapá","state":"AP", coords:[0.03,-51.06], cities:["Macapá","Mazagão"] },
+
+  "98": { main:"São Luís","state":"MA", coords:[-2.53,-44.30], cities:["São Luís","Imperatriz"] },
+  "99": { main:"Imperatriz","state":"MA", coords:[-5.53,-47.48], cities:["Imperatriz","Caxias"] }
+};
+
+/* ---------- UTIL & UI ---------- */
+const phoneInput = document.getElementById('phoneInput');
+const btnMap = document.getElementById('btnMap');
+const btnClear = document.getElementById('btnClear');
+const statusTitle = document.getElementById('statusTitle');
+const statusSub = document.getElementById('statusSub');
+const mapBox = document.getElementById('mapBox');
+const marker = document.getElementById('marker');
+const mapLabel = document.getElementById('mapLabel');
+const cityListEl = document.getElementById('cityList');
+const historyList = document.getElementById('historyList');
+const satLine = document.getElementById('satLine');
+
+function extractDDD(input){
+  if(!input) return null;
+  const digits = input.replace(/\D/g,'');
+  if(digits.startsWith('55') && digits.length>=4) return digits.substr(2,2);
+  if(digits.length >= 10) return digits.substr(0,2);
+  if(digits.length === 2) return digits;
+  return null;
+}
+
+/* Brasil bbox mapping for marker placement (approx) */
+const BRAZIL_BBOX = { latMin:-34, latMax:6, lonMin:-74, lonMax:-34 };
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function latLonToPercent(lat, lon){
+  const latC = clamp(lat, BRAZIL_BBOX.latMin, BRAZIL_BBOX.latMax);
+  const lonC = clamp(lon, BRAZIL_BBOX.lonMin, BRAZIL_BBOX.lonMax);
+  const yPct = 100 - ((latC - BRAZIL_BBOX.latMin) / (BRAZIL_BBOX.latMax - BRAZIL_BBOX.latMin) * 100);
+  const xPct = ((lonC - BRAZIL_BBOX.lonMin) / (BRAZIL_BBOX.lonMax - BRAZIL_BBOX.lonMin) * 100);
+  return { xPct, yPct };
+}
+
+/* map open animation */
+function animateOpenMap(){
+  statusTitle.textContent = 'Processando';
+  statusSub.textContent = 'Buscando DDD...';
+  cityListEl.innerHTML = '';
+  mapBox.classList.remove('open','opening'); mapBox.classList.add('closed');
+  marker.classList.remove('found'); mapLabel.textContent='—';
+  satLine.classList.remove('fly');
+  setTimeout(()=>{ mapBox.classList.remove('closed'); mapBox.classList.add('opening'); satLine.classList.add('active'); },600);
+  setTimeout(()=>{ mapBox.classList.remove('opening'); mapBox.classList.add('open'); satLine.classList.remove('active'); },1600);
+}
+
+/* show result: main city on map + animated list of cities */
+function showResultForDDD(ddd, raw){
+  const info = dddData[ddd];
+  if(!info){
+    statusTitle.textContent = 'DDD não encontrado';
+    statusSub.textContent = 'Nenhuma cidade associada na tabela local';
+    cityListEl.innerHTML = `<div class="placeholder muted">DDD "${ddd}" não consta na tabela local.</div>`;
+    marker.style.left='50%'; marker.style.top='50%'; marker.classList.remove('found');
+    mapLabel.textContent = '—';
+    return;
   }
 
-  async function locateGPS(){
-    statusText.textContent = 'Solicitando permissão...';
-    if(!navigator.geolocation){ statusText.textContent = 'Navegador não suporta GPS'; return; }
+  // header
+  statusTitle.textContent = `${info.main} — ${info.state}`;
+  statusSub.textContent = `Cidades associadas ao DDD ${ddd}`;
 
-    navigator.geolocation.getCurrentPosition(async (pos)=>{
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      latText.textContent = lat.toFixed(6);
-      lonText.textContent = lon.toFixed(6);
-      statusText.textContent = 'GPS obtido, buscando endereço...';
+  // place marker on main city
+  const [lat,lon] = info.coords;
+  const pos = latLonToPercent(lat,lon);
+  marker.style.left = pos.xPct + '%';
+  marker.style.top = pos.yPct + '%';
+  marker.classList.add('found');
+  mapLabel.textContent = `${info.main}, ${info.state} — Brasil`;
 
-      if(gpsMarker) map.removeLayer(gpsMarker);
-      gpsMarker = L.marker([lat,lon], {icon:blueIcon}).addTo(map);
-      map.setView([lat,lon], 15, { animate:true });
-
-      const rg = await reverseGeocode(lat,lon);
-      if(rg){
-        cityText.textContent = rg.city||'—';
-        neighText.textContent = rg.neighbourhood||'—';
-        stateText.textContent = (rg.state ? rg.state+' — ' : '') + (rg.country||'');
-        statusText.textContent = 'Endereço GPS encontrado';
-      } else {
-        cityText.textContent = neighText.textContent = stateText.textContent = '—';
-        statusText.textContent = 'Falha no reverse geocode';
-      }
-
-      updateTriangulation();
-    }, (err)=>{
-      statusText.textContent = 'Permissão negada ou erro';
-    }, { enableHighAccuracy:true, maximumAge:0, timeout:12000 });
-  }
-
-  // DDD mapping (aproximado)
-  const DDD_MAP = {
-    "11":"São Paulo","12":"São José dos Campos","13":"Santos","14":"Bauru","15":"Sorocaba",
-    "16":"Ribeirão Preto","17":"São José do Rio Preto","18":"Presidente Prudente","19":"Campinas",
-    "21":"Rio de Janeiro","22":"Campos dos Goytacazes","24":"Volta Redonda",
-    "27":"Vitória","28":"Cachoeiro de Itapemirim",
-    "31":"Belo Horizonte","32":"Juiz de Fora","33":"Governador Valadares","34":"Uberlândia","35":"Poços de Caldas",
-    "37":"Divinópolis","38":"Montes Claros",
-    "41":"Curitiba","42":"Ponta Grossa","43":"Londrina","44":"Maringá","45":"Foz do Iguaçu","46":"Francisco Beltrão",
-    "47":"Joinville","48":"Florianópolis","49":"Chapecó",
-    "51":"Porto Alegre","53":"Pelotas","54":"Caxias do Sul","55":"Santa Maria",
-    "61":"Brasília","62":"Goiânia","64":"Rio Verde","63":"Palmas","65":"Cuiabá","66":"Rondonópolis","67":"Campo Grande",
-    "68":"Rio Branco","69":"Porto Velho","71":"Salvador","73":"Ilhéus","74":"Juazeiro","75":"Feira de Santana","77":"Vitória da Conquista",
-    "79":"Aracaju","81":"Recife","82":"Maceió","83":"João Pessoa","84":"Natal","85":"Fortaleza","86":"Teresina","87":"Petrolina",
-    "88":"Sobral","89":"Picos","91":"Belém","92":"Manaus","93":"Santarém","94":"Marabá","95":"Boa Vista","96":"Macapá","97":"Coari",
-    "98":"São Luís","99":"Imperatriz"
-  };
-
-  function locateDDD(){
-    const val = inputDDD.value.trim();
-    if(!val){ dddText.textContent='—'; dddCityText.textContent='—'; return; }
-    const ddd = val.split(' ')[0];
-    const city = DDD_MAP[ddd] || 'Cidade desconhecida';
-    dddText.textContent = ddd;
-    dddCityText.textContent = city;
-
-    // marker: remove antigo
-    if(dddMarker) map.removeLayer(dddMarker);
-
-    // simulate city center
-    const cityCoords = { "São Paulo":[-23.5505,-46.6333],"Rio de Janeiro":[-22.9068,-43.1729],
-      "Belo Horizonte":[-19.9167,-43.9345],"Brasília":[-15.7939,-47.8828],"Curitiba":[-25.4284,-49.2733],
-      "Porto Alegre":[-30.0346,-51.2177],"Salvador":[-12.9714,-38.5014],"Fortaleza":[-3.7319,-38.5267],
-      "Recife":[-8.0476,-34.8770],"Belém":[-1.4550,-48.5024],"Manaus":[-3.1019,-60.0250],
-      "São José dos Campos":[-23.1896,-45.8841]
-    };
-    const coord = cityCoords[city] || [-14.2,-51.9];
-    dddMarker = L.marker(coord, {icon:redIcon}).addTo(map);
-
-    updateTriangulation();
-  }
-
-  // Triangulação animada
-  function drawTriangulation(){
-    if(!gpsMarker || !dddMarker) return;
-    const gpsLatLng = gpsMarker.getLatLng();
-    const dddLatLng = dddMarker.getLatLng();
-
-    if(pulseLine) map.removeLayer(pulseLine);
-
-    pulseLine = L.polyline([gpsLatLng, dddLatLng], {
-      color:'#06b6d4',
-      weight:3,
-      opacity:0.7,
-      dashArray:'10,10',
-      className:'pulse-line'
-    }).addTo(map);
-
-    let offset = 0;
-    function animateLine(){
-      if(!pulseLine) return;
-      offset = (offset + 1) % 20;
-      pulseLine.getElement().style.strokeDashoffset = offset;
-      requestAnimationFrame(animateLine);
-    }
-    requestAnimationFrame(animateLine);
-  }
-
-  function updateTriangulation(){
-    drawTriangulation();
-  }
-
-  btnLocate.addEventListener('click', locateGPS);
-  inputDDD.addEventListener('keypress', (e)=>{
-    if(e.key==='Enter') locateDDD();
+  // animated list
+  cityListEl.innerHTML = '';
+  const ul = document.createElement('ul');
+  ul.className = 'cities';
+  info.cities.forEach((c,i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="dot">•</span><strong>${c}</strong>`;
+    // staggered animation delay
+    li.style.animationDelay = (i * 90) + 'ms';
+    ul.appendChild(li);
   });
-  </script>
+  cityListEl.appendChild(ul);
+
+  // history
+  const li = document.createElement('li');
+  li.innerHTML = `<div><strong>${raw}</strong></div><div class="time">${new Date().toLocaleString()}</div><div class="sim-addr">DDD ${ddd} → ${info.main} — ${info.state}</div>`;
+  historyList.prepend(li);
+}
+
+/* events */
+btnMap.addEventListener('click', () => {
+  const raw = phoneInput.value.trim();
+  if(!raw){ alert('Insira um número ou DDD.'); return; }
+  const ddd = extractDDD(raw);
+  animateOpenMap();
+  setTimeout(()=> {
+    if(!ddd){
+      statusTitle.textContent = 'Entrada inválida';
+      statusSub.textContent = 'Não foi possível extrair o DDD';
+      cityListEl.innerHTML = `<div class="placeholder muted">Entrada inválida. Use formato +55 (XX) 9XXXX-XXXX ou apenas XX.</div>`;
+      return;
+    }
+    showResultForDDD(ddd, raw);
+  }, 900);
+});
+
+btnClear.addEventListener('click', () => {
+  phoneInput.value='';
+  statusTitle.textContent='Pronto';
+  statusSub.textContent='Insira um número e clique em "Mapear DDD".';
+  cityListEl.innerHTML='';
+  document.getElementById('result').querySelector('.placeholder').style.display='block';
+  mapLabel.textContent='—';
+  marker.style.left='50%'; marker.style.top='50%'; marker.classList.remove('found');
+  mapBox.classList.remove('open','opening'); mapBox.classList.add('closed');
+});
+</script>
 </body>
 </html>
