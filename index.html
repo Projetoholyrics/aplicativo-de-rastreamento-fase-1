@@ -47,9 +47,9 @@ if ("serviceWorker" in navigator) {
           <input id="phoneInput" class="input" placeholder="+55 (11) 99999-0000 ou 11" />
           <div class="actions">
   <button id="btnMap" class="btn primary">Mapear DDD</button>
-  <button onclick="iniciarRastreamentoReal()">▶ Iniciar</button>
-<button onclick="pararRastreamento()">⏹ Parar</button>
-
+  <button onclick="iniciarRastreamentoReal()" class="btn primary">
+    📱 Rastrear meu celular
+  </button>
   <button id="btnClear" class="btn ghost">Limpar</button>
 </div>
 
@@ -295,19 +295,29 @@ function iniciarRastreamentoReal() {
   );
 }
 </script>
-<div id="hud">
-  <p>Latitude: <span id="lat">--</span></p>
-  <p>Longitude: <span id="lon">--</span></p>
-  <p>Precisão: <span id="acc">--</span> m</p>
-</div>
+<body>
 
-<select id="modoGPS">
-  <option value="alta">Alta precisão</option>
-  <option value="economia">Economia de bateria</option>
-</select>
+  <!-- TODO O HTML -->
+  <div id="controls">
+    <button onclick="iniciarRastreamentoReal()">▶ Iniciar</button>
+    <button onclick="pararRastreamento()">⏹ Parar</button>
 
-<div id="privacyNotice">
-  Este aplicativo utiliza sua localização apenas para rastreamento em tempo real.
-  Nenhuma informação é compartilhada.
-</div>
-<button onclick="aceitarAviso()">Aceitar</button>
+    <select id="modoGPS">
+      <option value="alta">Alta precisão</option>
+      <option value="economia">Economia de bateria</option>
+    </select>
+  </div>
+
+  <div id="hud">
+    <p>Latitude: <span id="lat">--</span></p>
+    <p>Longitude: <span id="lon">--</span></p>
+    <p>Precisão: <span id="acc">--</span> m</p>
+    <p>Hora: <span id="time">--</span></p>
+  </div>
+
+  <!-- SCRIPT SEMPRE AQUI EMBAIXO -->
+  <script>
+    // TODO O SEU JS AQUI
+  </script>
+
+</body>
