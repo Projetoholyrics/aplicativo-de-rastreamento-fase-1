@@ -230,3 +230,39 @@ function iniciarRastreamentoReal() {
     { enableHighAccuracy: true }
   );
 }
+let watchId = null;
+
+// ---------- RASTREAMENTO REAL DO CELULAR (GPS) ----------
+function iniciarRastreamentoReal() {
+  if (!navigator.geolocation) {
+    alert("Geolocalização não suportada neste dispositivo");
+    return;
+  }
+
+  statusTitle.textContent = "Rastreando celular (GPS)";
+  statusSub.textContent = "Localização em tempo real ativa";
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const acc = pos.coords.accuracy;
+
+      if (marker) map.removeLayer(marker);
+
+      marker = L.marker([lat, lon]).addTo(map)
+        .bindPopup(`📍 Você está aqui<br>Precisão: ${Math.round(acc)}m`)
+        .openPopup();
+
+      map.setView([lat, lon], 17);
+    },
+    (err) => {
+      alert("Erro ao obter localização: " + err.message);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
