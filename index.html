@@ -205,3 +205,27 @@ btnClear.addEventListener('click', () => {
 </script>
 </body>
 </html>
+function iniciarRastreamentoReal() {
+  if (!navigator.geolocation) {
+    alert("Geolocalização não suportada");
+    return;
+  }
+
+  navigator.geolocation.watchPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      if (marker) map.removeLayer(marker);
+      marker = L.marker([lat, lon]).addTo(map)
+        .bindPopup("Localização atual do celular")
+        .openPopup();
+
+      map.setView([lat, lon], 15);
+    },
+    (err) => {
+      alert("Erro ao obter localização");
+    },
+    { enableHighAccuracy: true }
+  );
+}
