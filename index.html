@@ -12,6 +12,23 @@
     .cities li { margin: 2px 0; }
   </style>
 </head>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff8a00">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Launcher Futurista">
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(() => console.log("PWA ativo"))
+      .catch(err => console.error("SW erro:", err));
+  });
+}
+</script>
+
 <body>
   <div class="app">
     <header class="topbar">
@@ -230,15 +247,20 @@ function iniciarRastreamentoReal() {
     { enableHighAccuracy: true }
   );
 }
-<script>
-// variáveis
+<<script>
 let marker;
 let watchId = null;
 
-// funções antigas (DDD, mapa, etc)
-// ...
+const statusTitle = document.getElementById("statusTitle");
+const statusSub   = document.getElementById("statusSub");
 
-// ---------- RASTREAMENTO REAL DO CELULAR (GPS) ----------
+// inicializa mapa
+const map = L.map("map").setView([-15.793889, -47.882778], 4);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap"
+}).addTo(map);
+
 function iniciarRastreamentoReal() {
   if (!navigator.geolocation) {
     alert("Geolocalização não suportada neste dispositivo");
