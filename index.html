@@ -283,6 +283,60 @@ function atualizarEstados() {
   }
 }
 // ===== FIM: Dados de Estados e Regiões =====
+
+// ===== INÍCIO: Integração País + Estado + DDD + GPS =====
+const dddPorEstado = {
+  "São Paulo": "11–19",
+  "Rio de Janeiro": "21–24",
+  "Minas Gerais": "31–38",
+  "Bahia": "71–77",
+  "Paraná": "41–46",
+  "Rio Grande do Sul": "51–55",
+  "Santa Catarina": "47–49",
+  "Distrito Federal": "61",
+  "Goiás": "62–64",
+  "Pernambuco": "81–89",
+  "Ceará": "85–88",
+  "Pará": "91–94",
+  "Amazonas": "92–97"
+};
+
+function mostrarDDD() {
+  const estado = document.getElementById("estado").value;
+  let info = document.getElementById("infoDDD");
+
+  if (!info) {
+    info = document.createElement("div");
+    info.id = "infoDDD";
+    document.querySelector(".localizacao-box").appendChild(info);
+  }
+
+  if (dddPorEstado[estado]) {
+    info.innerHTML = `📞 DDD do estado: <strong>${dddPorEstado[estado]}</strong>`;
+  } else if (estado) {
+    info.innerHTML = "📞 DDD não disponível para esta região";
+  }
+}
+
+const estadoSelect = document.getElementById("estado");
+if (estadoSelect) {
+  estadoSelect.addEventListener("change", mostrarDDD);
+}
+
+// ===== INTEGRAÇÃO COM GPS =====
+function detectarPaisPorGPS(lat, lon) {
+  if (lat < -33 && lat > -5 && lon < -34 && lon > -74) {
+    document.getElementById("pais").value = "BR";
+    atualizarEstados();
+  }
+}
+
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    detectarPaisPorGPS(pos.coords.latitude, pos.coords.longitude);
+  });
+}
+// ===== FIM: Integrações =====
 </script>
 
 </body>
