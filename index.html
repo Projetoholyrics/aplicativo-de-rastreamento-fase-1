@@ -213,5 +213,77 @@
     }
   </script>
 
+
+
+<!-- ===== INÍCIO: Seleção de País / Estados (Brasil e Exterior) ===== -->
+<div class="localizacao-box" style="margin-top:20px;">
+  <h3>📍 Localização</h3>
+
+  <label for="pais">País:</label>
+  <select id="pais" onchange="atualizarEstados()">
+    <option value="">Selecione o país</option>
+    <option value="BR">Brasil</option>
+    <option value="US">Estados Unidos</option>
+    <option value="PT">Portugal</option>
+    <option value="AR">Argentina</option>
+    <option value="FR">França</option>
+    <option value="DE">Alemanha</option>
+    <option value="JP">Japão</option>
+    <option value="OUTRO">Outro</option>
+  </select>
+
+  <label for="estado">Estado / Região:</label>
+  <select id="estado">
+    <option value="">Selecione</option>
+  </select>
+</div>
+<!-- ===== FIM: Seleção de País / Estados ===== -->
+
+<script>
+// ===== INÍCIO: Dados de Estados e Regiões =====
+const estadosBrasil = [
+  "Acre", "Alagoas", "Amapá", "Amazonas", "Bahia", "Ceará",
+  "Distrito Federal", "Espírito Santo", "Goiás", "Maranhão",
+  "Mato Grosso", "Mato Grosso do Sul", "Minas Gerais",
+  "Pará", "Paraíba", "Paraná", "Pernambuco", "Piauí",
+  "Rio de Janeiro", "Rio Grande do Norte", "Rio Grande do Sul",
+  "Rondônia", "Roraima", "Santa Catarina", "São Paulo",
+  "Sergipe", "Tocantins"
+];
+
+const regioesExterior = {
+  US: ["Califórnia", "Texas", "Flórida", "Nova York"],
+  PT: ["Lisboa", "Porto", "Braga", "Coimbra"],
+  AR: ["Buenos Aires", "Córdoba", "Rosário"],
+  FR: ["Île-de-France", "Occitânia", "Provença"],
+  DE: ["Berlim", "Baviera", "Hamburgo"],
+  JP: ["Tóquio", "Osaka", "Quioto"]
+};
+
+function atualizarEstados() {
+  const pais = document.getElementById("pais").value;
+  const estadoSelect = document.getElementById("estado");
+
+  estadoSelect.innerHTML = "<option value=''>Selecione</option>";
+
+  if (pais === "BR") {
+    estadosBrasil.forEach(estado => {
+      const opt = document.createElement("option");
+      opt.value = estado;
+      opt.textContent = estado;
+      estadoSelect.appendChild(opt);
+    });
+  } else if (regioesExterior[pais]) {
+    regioesExterior[pais].forEach(regiao => {
+      const opt = document.createElement("option");
+      opt.value = regiao;
+      opt.textContent = regiao;
+      estadoSelect.appendChild(opt);
+    });
+  }
+}
+// ===== FIM: Dados de Estados e Regiões =====
+</script>
+
 </body>
 </html>
